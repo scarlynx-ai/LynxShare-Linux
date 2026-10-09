@@ -204,10 +204,10 @@ def start_local_server(port):
     return server
 
 
-def launch_pywebview(app_url):
+def launch_pywebview(app_url, debug=False):
     try:
         import webview
-        print("[LynxShare] Iniciando interfaz nativa con WebKitGTK (pywebview)...")
+        print("[LynxShare] Iniciando interfaz nativa con WebKitGTK...")
         webview.create_window(
             title=f"LynxShare {APP_VERSION} - Explorador Multimedia",
             url=app_url,
@@ -217,7 +217,7 @@ def launch_pywebview(app_url):
             background_color="#090c15",
             text_select=False
         )
-        webview.start(gui="gtk", debug=True)
+        webview.start(gui="gtk", debug=debug)
         return True
     except ImportError:
         return False
@@ -339,7 +339,7 @@ def main():
 
     # 1. Try pywebview (Native GTK WebKit window)
     if not args.browser:
-        if launch_pywebview(app_url):
+        if launch_pywebview(app_url, debug=bool(args.debug)):
             return
 
         # 2. Try standalone app window (Chromium / Flatpak / Epiphany)
