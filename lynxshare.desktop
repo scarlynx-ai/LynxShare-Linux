@@ -1,0 +1,22 @@
+[Desktop Entry]
+Version=1.0
+Type=Application
+Name=LynxShare
+GenericName=Explorador Multimedia PC
+Comment=Explorador de archivos, streaming de video inmersivo y gestor para servidores PC (Lenovo Yoga 7 Edition)
+Exec=lynxshare %U
+Icon=lynxshare
+Terminal=false
+Categories=AudioVideo;Video;Player;Network;FileManager;Utility;
+MimeType=video/mp4;video/x-matroska;video/webm;audio/mpeg;image/jpeg;image/png;
+StartupWMClass=lynxshare
+Keywords=lynxshare;pc;streaming;multimedia;share;yoga;fedora;
+Actions=NewWindow;Config;
+
+[Desktop Action NewWindow]
+Name=Nueva Ventana
+Exec=lynxshare
+
+[Desktop Action Config]
+Name=Configurar Servidor PC
+Exec=lynxshare --browser

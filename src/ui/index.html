@@ -1,0 +1,447 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>LynxShare - Linux Desktop (Fedora)</title>
+  <link rel="icon" type="image/png" href="../assets/lynxshare.png">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- APP CONTAINER -->
+  <div class="app-layout">
+    
+    <!-- TOP NAVBAR -->
+    <header class="navbar">
+      <div class="nav-brand">
+        <img src="../assets/lynxshare.svg" alt="LynxShare Logo" class="brand-logo" onerror="this.src='../assets/lynxshare.png'">
+        <div class="brand-text">
+          <div class="brand-title">LynxShare <span class="brand-tag">Fedora · Yoga 7</span></div>
+          <div class="brand-subtitle" id="statusIndicator">
+            <span class="status-dot online" id="statusDot"></span>
+            <span id="statusText">Conectando a PC...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- DISK USAGE METER -->
+      <div class="disk-meter" id="diskMeter" onclick="openServerModal()" title="Espacio en disco del servidor (Clic para configurar servidor)">
+        <div class="disk-meta">
+          <span class="disk-title">Disco Servidor:</span>
+          <span class="disk-values" id="diskValues">-- / --</span>
+        </div>
+        <div class="disk-bar-bg">
+          <div class="disk-bar-fill" id="diskBarFill" style="width: 0%;"></div>
+        </div>
+      </div>
+
+      <!-- NAVBAR ACTIONS -->
+      <div class="nav-actions">
+        <button class="btn btn-icon" id="btnUpload" onclick="triggerFileInput()" title="Subir Archivos (o arrastra aquí)">
+          <svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
+          <span class="btn-label">Subir</span>
+        </button>
+        <button class="btn btn-icon" onclick="openNewFolderModal()" title="Nueva Carpeta">
+          <svg viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.11 0-1.99.89-1.99 2L2 18c0 1.11.89 2 2 2h16c1.11 0 2-.89 2-2V8c0-1.11-.89-2-2-2zm-1 8h-3v3h-2v-3h-3v-2h3v-3h2v3h3v2z"/></svg>
+          <span class="btn-label">Carpeta</span>
+        </button>
+        <button class="btn btn-icon" onclick="openNotesModal()" title="Notas y Portapapeles Compartido">
+          <svg viewBox="0 0 24 24"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04c.39-.39.39-1.02 0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z"/></svg>
+          <span class="btn-label">Notas</span>
+        </button>
+        <button class="btn btn-icon" onclick="openCastModal()" title="Transmitir a Smart TV">
+          <svg viewBox="0 0 24 24"><path d="M1 18v3h3c0-1.66-1.34-3-3-3zm0-4v2c2.76 0 5 2.24 5 5h2c0-3.87-3.13-7-7-7zm0-4v2c4.97 0 9 4.03 9 9h2c0-6.08-4.93-11-11-11zm20-7H3c-1.1 0-2 .9-2 2v3h2V5h18v14h-7v2h7c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2z"/></svg>
+          <span class="btn-label">Cast</span>
+        </button>
+        <button class="btn btn-icon" onclick="openServerModal()" title="Configuración de Red y Servidor">
+          <svg viewBox="0 0 24 24"><path d="M19.14 12.94c.04-.3.06-.61.06-.94 0-.32-.02-.64-.07-.94l2.03-1.58c.18-.14.23-.41.12-.61l-1.92-3.32c-.12-.22-.37-.29-.59-.22l-2.39.96c-.5-.38-1.03-.7-1.62-.94l-.36-2.54c-.04-.24-.24-.41-.48-.41h-3.84c-.24 0-.43.17-.47.41l-.36 2.54c-.59.24-1.13.57-1.62.94l-2.39-.96c-.22-.08-.47 0-.59.22L2.74 8.87c-.12.21-.08.47.12.61l2.03 1.58c-.05.3-.09.63-.09.94s.02.64.07.94l-2.03 1.58c-.18.14-.23.41-.12.61l1.92 3.32c.12.22.37.29.59.22l2.39-.96c.5.38 1.03.7 1.62.94l.36 2.54c.05.24.24.41.48.41h3.84c.24 0 .44-.17.47-.41l.36-2.54c.59-.24 1.13-.56 1.62-.94l2.39.96c.22.08.47 0 .59-.22l1.92-3.32c.12-.22.07-.47-.12-.61l-2.01-1.58zM12 15.6c-1.98 0-3.6-1.62-3.6-3.6s1.62-3.6 3.6-3.6 3.6 1.62 3.6 3.6-1.62 3.6-3.6 3.6z"/></svg>
+        </button>
+      </div>
+    </header>
+
+    <!-- EXPLORER TOOLBAR -->
+    <div class="toolbar">
+      <!-- BREADCRUMBS -->
+      <nav class="breadcrumbs" id="breadcrumbsNav">
+        <button class="breadcrumb-item" onclick="navigateToPath('')">
+          <svg viewBox="0 0 24 24" class="icon-sm"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
+          <span>Inicio (D:/)</span>
+        </button>
+      </nav>
+
+      <!-- SEARCH & CONTROLS -->
+      <div class="toolbar-controls">
+        <div class="search-box">
+          <svg viewBox="0 0 24 24" class="search-icon"><path d="M15.5 14h-.79l-.28-.27A6.471 6.471 0 0 0 16 9.5 6.5 6.5 0 1 0 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z"/></svg>
+          <input type="text" id="searchInput" placeholder="Filtrar archivos..." oninput="handleSearch(this.value)">
+          <button class="btn-clear" id="btnClearSearch" onclick="clearSearch()" style="display:none;">✕</button>
+        </div>
+
+        <button class="btn btn-secondary btn-icon-only" id="btnToggleView" onclick="toggleViewMode()" title="Alternar Cuadrícula / Lista">
+          <svg id="viewGridIcon" viewBox="0 0 24 24"><path d="M4 11h5V5H4v6zm0 7h5v-6H4v6zm6 0h5v-6h-5v6zm6 0h5v-6h-5v6zm-6-7h5V5h-5v6zm6-6v6h5V5h-5z"/></svg>
+          <svg id="viewListIcon" viewBox="0 0 24 24" style="display:none;"><path d="M4 14h4v-4H4v4zm0 5h4v-4H4v4zM4 9h4V5H4v4zm5 5h12v-4H9v4zm0 5h12v-4H9v4zM9 5v4h12V5H9z"/></svg>
+        </button>
+
+        <button class="btn btn-secondary btn-icon-only" onclick="downloadCurrentFolderZip()" title="Descargar carpeta como ZIP">
+          <svg viewBox="0 0 24 24"><path d="M19.35 10.04C18.67 6.59 15.64 4 12 4 9.11 4 6.6 5.64 5.35 8.04 2.34 8.36 0 10.91 0 14c0 3.31 2.69 6 6 6h13c2.76 0 5-2.24 5-5 0-2.64-2.05-4.78-4.65-4.96zM17 13l-5 5-5-5h3V9h4v4h3z"/></svg>
+        </button>
+
+        <button class="btn btn-secondary btn-icon-only" onclick="refreshCurrentFolder()" title="Actualizar archivos">
+          <svg viewBox="0 0 24 24"><path d="M17.65 6.35A7.958 7.958 0 0 0 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08A5.99 5.99 0 0 1 12 18c-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z"/></svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- CATEGORY FILTER CHIPS -->
+    <div class="category-bar">
+      <button class="cat-chip active" onclick="setCategoryFilter('ALL')" data-category="ALL">Todos <span class="badge-count" id="countAll">0</span></button>
+      <button class="cat-chip" onclick="setCategoryFilter('VIDEO')" data-category="VIDEO">🎬 Videos <span class="badge-count" id="countVideo">0</span></button>
+      <button class="cat-chip" onclick="setCategoryFilter('AUDIO')" data-category="AUDIO">🎵 Música <span class="badge-count" id="countAudio">0</span></button>
+      <button class="cat-chip" onclick="setCategoryFilter('IMAGE')" data-category="IMAGE">🖼️ Fotos <span class="badge-count" id="countImage">0</span></button>
+      <button class="cat-chip" onclick="setCategoryFilter('DOCUMENT')" data-category="DOCUMENT">📄 Documentos <span class="badge-count" id="countDoc">0</span></button>
+      <button class="cat-chip" onclick="setCategoryFilter('ARCHIVE')" data-category="ARCHIVE">📦 Comprimidos <span class="badge-count" id="countZip">0</span></button>
+      <button class="cat-chip" onclick="setCategoryFilter('APK')" data-category="APK">🤖 Apps Android <span class="badge-count" id="countApk">0</span></button>
+    </div>
+
+    <!-- MAIN CONTENT AREA / FILE CONTAINER -->
+    <main class="file-container grid-mode" id="fileContainer">
+      <!-- Loading Skeleton -->
+      <div class="loading-state" id="loadingState">
+        <div class="spinner"></div>
+        <p>Explorando archivos en tu servidor...</p>
+      </div>
+
+      <!-- Empty State -->
+      <div class="empty-state" id="emptyState" style="display: none;">
+        <svg viewBox="0 0 24 24"><path d="M20 6h-8l-2-2H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 12H4V8h16v10z"/></svg>
+        <h3>No se encontraron archivos</h3>
+        <p>Esta carpeta está vacía o el filtro de búsqueda no coincide con ningún archivo.</p>
+        <button class="btn btn-primary" onclick="triggerFileInput()">Subir un archivo aquí</button>
+      </div>
+
+      <!-- Items Grid / List is rendered here by app.js -->
+    </main>
+
+    <!-- HIDDEN FILE INPUT FOR UPLOADS -->
+    <input type="file" id="fileInput" multiple style="display: none;" onchange="handleFilesSelected(event)">
+
+    <!-- DRAG AND DROP OVERLAY -->
+    <div class="drop-overlay" id="dropOverlay">
+      <div class="drop-content">
+        <svg viewBox="0 0 24 24"><path d="M9 16h6v-6h4l-7-7-7 7h4zm-4 2h14v2H5z"/></svg>
+        <h2>Suelta tus archivos aquí</h2>
+        <p>Se subirán automáticamente a la carpeta actual en tu servidor PC</p>
+      </div>
+    </div>
+
+    <!-- BOTTOM FLOATING AUDIO PLAYER -->
+    <div class="floating-audio-player" id="floatingAudioPlayer" style="display: none;">
+      <div class="audio-info">
+        <div class="audio-art">🎵</div>
+        <div class="audio-text">
+          <div class="audio-title" id="audioTitle">Pista de audio</div>
+          <div class="audio-meta" id="audioMeta">00:00 / 00:00</div>
+        </div>
+      </div>
+
+      <div class="audio-controls">
+        <button class="btn-audio-control" onclick="audioSeek(-10)" title="Retroceder 10s">⏪ 10s</button>
+        <button class="btn-audio-play" id="btnAudioPlay" onclick="toggleAudioPlay()">▶</button>
+        <button class="btn-audio-control" onclick="audioSeek(10)" title="Adelantar 10s">10s ⏩</button>
+        <input type="range" class="audio-slider" id="audioProgress" min="0" max="100" value="0" oninput="onAudioSliderChange(this.value)">
+      </div>
+
+      <div class="audio-extra">
+        <span class="vol-icon">🔊</span>
+        <input type="range" class="vol-slider" id="audioVolume" min="0" max="1" step="0.05" value="1" oninput="setAudioVolume(this.value)">
+        <button class="btn-audio-close" onclick="closeAudioPlayer()">✕</button>
+      </div>
+      <audio id="audioElement" preload="metadata"></audio>
+    </div>
+
+  </div>
+
+  <!-- MODAL: FULL-SCREEN INMERSIVE VIDEO PLAYER (OPTIMIZED FOR YOGA 7 2-IN-1 TOUCH) -->
+  <div class="video-modal-overlay" id="videoModal">
+    <div class="video-modal-container">
+      
+      <!-- Video Header -->
+      <div class="video-header" id="videoHeader">
+        <div class="video-title-box">
+          <button class="btn-back-video" onclick="closeVideoPlayer()">✕ Cerrar</button>
+          <div class="video-filename" id="videoPlayerTitle">Película.mkv</div>
+        </div>
+        
+        <div class="video-header-actions">
+          <!-- Aspect Ratio Toggle: FIT (Centrado proporcional) vs INMERSIVO (Llenar pantalla) -->
+          <button class="btn-aspect" id="btnAspectToggle" onclick="toggleVideoAspect()" title="Cambiar modo de pantalla">
+            <span class="aspect-badge">MODO</span>
+            <span id="aspectModeLabel">FIT (Ajustado)</span>
+          </button>
+
+          <button class="btn-icon-video" onclick="toggleVideoPiP()" title="Imagen en imagen (PiP)">
+            <svg viewBox="0 0 24 24"><path d="M19 7h-8v6h8V7zm2-4H3c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 16.01H3V4.99h18v14.02z"/></svg>
+          </button>
+
+          <button class="btn-icon-video" onclick="toggleVideoFullscreen()" title="Pantalla Completa">
+            <svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z"/></svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- Touch Gesture HUD overlay for Yoga 7 Touchscreen -->
+      <div class="gesture-hud" id="gestureHud" style="opacity: 0;">
+        <span id="gestureHudIcon">🔊</span>
+        <span id="gestureHudText">50%</span>
+      </div>
+
+      <!-- Video Element Area -->
+      <div class="video-wrapper fit-mode" id="videoWrapper">
+        <video id="mainVideoPlayer" preload="auto" playsinline webkit-playsinline></video>
+        
+        <!-- Double Tap Seek Rings for Touch Screen -->
+        <div class="seek-ripple left" id="rippleLeft">-10s</div>
+        <div class="seek-ripple right" id="rippleRight">+10s</div>
+      </div>
+
+      <!-- Video Controls Bar -->
+      <div class="video-controls-bar" id="videoControls">
+        <!-- Progress Bar -->
+        <div class="scrubber-container">
+          <input type="range" class="video-scrubber" id="videoScrubber" min="0" max="100" step="0.1" value="0" oninput="onVideoScrubberInput(this.value)">
+          <div class="scrubber-progress-fill" id="scrubberFill" style="width: 0%;"></div>
+        </div>
+
+        <div class="video-controls-row">
+          <div class="controls-left">
+            <button class="btn-ctrl-play" id="btnVideoPlay" onclick="toggleVideoPlay()">▶</button>
+            <button class="btn-ctrl" onclick="videoSeek(-10)" title="Retroceder 10s">⏪ 10s</button>
+            <button class="btn-ctrl" onclick="videoSeek(10)" title="Adelantar 10s">10s ⏩</button>
+            <div class="video-time" id="videoTimeDisplay">00:00:00 / 00:00:00</div>
+          </div>
+
+          <div class="controls-right">
+            <!-- Speed button -->
+            <button class="btn-ctrl-speed" id="btnSpeed" onclick="cycleVideoSpeed()">1.0x</button>
+            
+            <!-- Volume Slider -->
+            <div class="video-vol-box">
+              <button class="btn-ctrl-vol" id="btnVideoMute" onclick="toggleVideoMute()">🔊</button>
+              <input type="range" class="video-vol-slider" id="videoVolSlider" min="0" max="1" step="0.05" value="1" oninput="setVideoVolume(this.value)">
+            </div>
+
+            <!-- Cast button -->
+            <button class="btn-ctrl" onclick="castCurrentVideo()" title="Transmitir este video a Smart TV">
+              📺 TV
+            </button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MODAL: PHOTO GALLERY VIEWER -->
+  <div class="photo-modal-overlay" id="photoModal" onclick="closePhotoModalOnBackdrop(event)">
+    <div class="photo-header">
+      <div class="photo-title" id="photoTitle">Foto.jpg</div>
+      <div class="photo-counter" id="photoCounter">1 / 1</div>
+      <div class="photo-actions">
+        <button class="btn btn-secondary btn-icon-only" onclick="zoomPhoto(-0.25)" title="Reducir">🔍-</button>
+        <button class="btn btn-secondary btn-icon-only" onclick="zoomPhoto(0.25)" title="Ampliar">🔍+</button>
+        <button class="btn btn-secondary btn-icon-only" onclick="resetPhotoZoom()" title="Restaurar zoom">1:1</button>
+        <button class="btn btn-secondary btn-icon-only" onclick="downloadCurrentPhoto()" title="Descargar">⬇️</button>
+        <button class="btn btn-secondary btn-icon-only" onclick="closePhotoModal()" title="Cerrar">✕</button>
+      </div>
+    </div>
+
+    <div class="photo-body" id="photoContainer">
+      <img id="photoImage" src="" alt="Vista previa">
+      <button class="photo-nav-btn prev" onclick="navigatePhoto(-1)" title="Anterior">‹</button>
+      <button class="photo-nav-btn next" onclick="navigatePhoto(1)" title="Siguiente">›</button>
+    </div>
+  </div>
+
+  <!-- MODAL: SHARED NOTES / CLIPBOARD -->
+  <div class="modal-backdrop" id="notesModal" onclick="closeModalOnBackdrop(event, 'notesModal')">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span>📋 Portapapeles & Notas Compartidas</span>
+        </div>
+        <button class="btn-modal-close" onclick="closeModal('notesModal')">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <p class="modal-desc">
+          Copia texto, enlaces o recordatorios en esta laptop y aparecerán al instante en tu servidor PC y en tu móvil/tablet.
+        </p>
+        <textarea id="notesTextarea" class="notes-input" placeholder="Escribe o pega texto, enlaces o apuntes aquí..."></textarea>
+        <div class="notes-meta">
+          <span id="notesTimestamp">Última sinc: --</span>
+          <span id="notesStatusLabel" style="color: var(--cyan);">En sincronía</span>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="copyNotesToClipboard()">📋 Copiar Todo</button>
+        <button class="btn btn-secondary" onclick="loadNotesFromServer()">🔄 Recargar</button>
+        <button class="btn btn-primary" onclick="saveNotesToServer()">💾 Guardar y Sincronizar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: SERVER SETTINGS -->
+  <div class="modal-backdrop" id="serverModal" onclick="closeModalOnBackdrop(event, 'serverModal')">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">
+          <span>⚙️ Conexión al Servidor PC</span>
+        </div>
+        <button class="btn-modal-close" onclick="closeModal('serverModal')">✕</button>
+      </div>
+
+      <div class="modal-body">
+        <p class="modal-desc">
+          Introduce la dirección IP y puerto del servidor de archivos que corre en tu PC de escritorio (por defecto: <code>http://192.168.31.219:8090</code>).
+        </p>
+
+        <div class="form-group">
+          <label class="form-label" for="serverUrlInput">URL del Servidor:</label>
+          <input type="text" id="serverUrlInput" class="form-input" placeholder="http://192.168.31.219:8090">
+        </div>
+
+        <div class="server-status-card" id="serverTestCard">
+          <div class="test-row">
+            <span>Estado:</span>
+            <strong id="testStatusLabel" style="color: var(--text-muted);">Sin probar</strong>
+          </div>
+          <div class="test-row">
+            <span>Directorio compartido:</span>
+            <span id="testSharedDir">--</span>
+          </div>
+          <div class="test-row">
+            <span>Capacidad total:</span>
+            <span id="testTotalSpace">--</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="testServerConnection()">⚡ Probar Conexión</button>
+        <button class="btn btn-primary" onclick="saveServerSettings()">Guardar Servidor</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: NUEVA CARPETA -->
+  <div class="modal-backdrop" id="newFolderModal" onclick="closeModalOnBackdrop(event, 'newFolderModal')">
+    <div class="modal-card modal-sm">
+      <div class="modal-header">
+        <div class="modal-title">➕ Nueva Carpeta</div>
+        <button class="btn-modal-close" onclick="closeModal('newFolderModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <label class="form-label" for="newFolderName">Nombre de la carpeta:</label>
+        <input type="text" id="newFolderName" class="form-input" placeholder="Ej: Peliculas_4K, Documentos...">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('newFolderModal')">Cancelar</button>
+        <button class="btn btn-primary" onclick="submitCreateFolder()">Crear</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: RENOMBRAR ARCHIVO -->
+  <div class="modal-backdrop" id="renameModal" onclick="closeModalOnBackdrop(event, 'renameModal')">
+    <div class="modal-card modal-sm">
+      <div class="modal-header">
+        <div class="modal-title">✏️ Renombrar</div>
+        <button class="btn-modal-close" onclick="closeModal('renameModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="renameOldRelPath">
+        <label class="form-label" for="renameNewName">Nuevo nombre:</label>
+        <input type="text" id="renameNewName" class="form-input">
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('renameModal')">Cancelar</button>
+        <button class="btn btn-primary" onclick="submitRename()">Guardar</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: ELIMINAR CONFIRMACIÓN -->
+  <div class="modal-backdrop" id="deleteModal" onclick="closeModalOnBackdrop(event, 'deleteModal')">
+    <div class="modal-card modal-sm">
+      <div class="modal-header">
+        <div class="modal-title" style="color: var(--danger);">🗑️ Eliminar Archivo</div>
+        <button class="btn-modal-close" onclick="closeModal('deleteModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <input type="hidden" id="deleteRelPath">
+        <p>¿Estás seguro de que deseas eliminar permanentemente este elemento de tu servidor?</p>
+        <strong id="deleteItemName" style="color: var(--cyan); display: block; margin-top: 8px; word-break: break-all;"></strong>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('deleteModal')">Cancelar</button>
+        <button class="btn btn-danger" onclick="submitDelete()">Eliminar Definitivamente</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- MODAL: TRANSMITIR A SMART TV -->
+  <div class="modal-backdrop" id="castModal" onclick="closeModalOnBackdrop(event, 'castModal')">
+    <div class="modal-card">
+      <div class="modal-header">
+        <div class="modal-title">📺 Transmitir a Smart TV</div>
+        <button class="btn-modal-close" onclick="closeModal('castModal')">✕</button>
+      </div>
+      <div class="modal-body">
+        <p class="modal-desc">
+          Envía el video o audio directamente a tu Smart TV conectada en la misma red Wi-Fi.
+        </p>
+
+        <div class="form-group">
+          <label class="form-label">Archivo a reproducir:</label>
+          <input type="text" id="castRelPathInput" class="form-input" readonly>
+        </div>
+
+        <div class="form-group">
+          <label class="form-label">Dispositivo Smart TV:</label>
+          <select id="castTargetSelect" class="form-input">
+            <option value="LivingRoomTV">TCL Smart TV (Sala)</option>
+            <option value="BedroomTV">Smart TV (Dormitorio)</option>
+            <option value="AnyCast">Cualquier receptor DLNA / Chromecast</option>
+          </select>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn btn-secondary" onclick="closeModal('castModal')">Cancelar</button>
+        <button class="btn btn-primary" onclick="submitCast()">Transmitir Ahora 🚀</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- TOAST NOTIFICATION CONTAINER -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- UPLOAD PROGRESS FLOATING CARD -->
+  <div class="upload-progress-card" id="uploadProgressCard" style="display: none;">
+    <div class="upload-prog-header">
+      <span class="upload-prog-title">Subiendo archivo(s)...</span>
+      <span class="upload-prog-percent" id="uploadProgPercent">0%</span>
+    </div>
+    <div class="upload-prog-bar-bg">
+      <div class="upload-prog-bar-fill" id="uploadProgFill" style="width: 0%;"></div>
+    </div>
+    <div class="upload-prog-meta" id="uploadProgMeta">0 MB / 0 MB</div>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
