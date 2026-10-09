@@ -230,8 +230,9 @@ function renderBreadcrumbs(crumbs) {
   DOM.breadcrumbsNav.innerHTML = '';
   
   // Home button
+  const isAtRoot = !state.currentPath || state.currentPath.trim() === '';
   const homeBtn = document.createElement('button');
-  homeBtn.className = `breadcrumb-item ${crumbs.length === 0 ? 'active' : ''}`;
+  homeBtn.className = `breadcrumb-item ${isAtRoot ? 'active' : ''}`;
   homeBtn.innerHTML = `
     <svg viewBox="0 0 24 24" class="icon-sm"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8z"/></svg>
     <span>Inicio (D:/)</span>
@@ -239,14 +240,16 @@ function renderBreadcrumbs(crumbs) {
   homeBtn.onclick = () => loadFolder('');
   DOM.breadcrumbsNav.appendChild(homeBtn);
 
-  let accumulated = '';
-  crumbs.forEach((crumb, index) => {
+  // Filter out the root crumb (path == '') so it does not repeat 'Inicio'
+  const subCrumbs = (crumbs || []).filter(c => c.path && c.path.trim() !== '');
+
+  subCrumbs.forEach((crumb, index) => {
     const sep = document.createElement('span');
     sep.className = 'breadcrumb-separator';
     sep.textContent = '›';
     DOM.breadcrumbsNav.appendChild(sep);
 
-    const isLast = index === crumbs.length - 1;
+    const isLast = index === subCrumbs.length - 1;
     const btn = document.createElement('button');
     btn.className = `breadcrumb-item ${isLast ? 'active' : ''}`;
     btn.textContent = crumb.name;

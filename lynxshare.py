@@ -13,8 +13,9 @@ import subprocess
 import threading
 import webbrowser
 import json
+import time
 from pathlib import Path
-from http.server import HTTPServer, SimpleHTTPRequestHandler
+from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 
 APP_NAME = "LynxShare"
 APP_VERSION = "1.0.6"
@@ -55,32 +56,46 @@ def find_free_port():
 
 
 class LynxShareHandler(SimpleHTTPRequestHandler):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, directory=str(BASE_DIR), **kwargs)
-
-    def do_GET(self):
-        # Redirect root to UI index.html
-        if self.path == "/" or self.path == "":
-            self.send_response(302)
-            self.send_header("Location", "/src/ui/index.html")
-            self.end_headers()
-            return
-        super().do_GET()
+    """Multi-threaded handler that cleanly routes root and assets without ugly redirects."""
+    
+    def translate_path(self, path):
+        clean_path = path.split('?', 1)[0].split('#', 1)[0]
+        
+        # Route root & UI core files
+        if clean_path in ('/', '/index.html'):
+            return str(UI_DIR / "index.html")
+        elif clean_path == '/style.css':
+            return str(UI_DIR / "style.css")
+        elif clean_path == '/app.js':
+            return str(UI_DIR / "app.js")
+        elif clean_path.startswith('/assets/'):
+            rel = clean_path.replace('/assets/', '', 1)
+            return str(ASSETS_DIR / rel)
+        elif clean_path == '/favicon.ico':
+            return str(ASSETS_DIR / "lynxshare.png")
+        elif clean_path.startswith('/src/ui/'):
+            rel = clean_path.replace('/src/ui/', '', 1)
+            return str(UI_DIR / rel)
+        elif clean_path.startswith('/src/assets/'):
+            rel = clean_path.replace('/src/assets/', '', 1)
+            return str(ASSETS_DIR / rel)
+        
+        return super().translate_path(path)
 
     def end_headers(self):
-        # Enable CORS and disable aggressive caching for local UI assets
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Cache-Control", "no-cache, must-revalidate")
         super().end_headers()
 
     def log_message(self, format, *args):
-        # Silent server logging unless debug is specified
         if os.environ.get("LYNXSHARE_DEBUG") == "1":
             super().log_message(format, *args)
 
 
 def start_local_server(port):
-    server = HTTPServer(('127.0.0.1', port), LynxShareHandler)
+    # Using ThreadingHTTPServer prevents blocking on keep-alive connections
+    server = ThreadingHTTPServer(('127.0.0.1', port), LynxShareHandler)
+    server.daemon_threads = True
     thread = threading.Thread(target=server.serve_forever, daemon=True)
     thread.start()
     return server
@@ -108,33 +123,57 @@ def launch_pywebview(app_url):
         return False
 
 
-def find_chromium_app_browser():
-    # Common browsers on Fedora
-    candidates = [
-        "google-chrome-stable",
-        "google-chrome",
-        "chromium-browser",
-        "chromium",
-        "brave-browser",
-        "microsoft-edge-stable",
-        "microsoft-edge"
+def find_standalone_browser():
+    """Finds available Chromium-based, Flatpak, or Epiphany browsers on Fedora."""
+    # 1. Native binaries in PATH
+    native_candidates = [
+        ("brave-browser", ["--app={url}"]),
+        ("brave", ["--app={url}"]),
+        ("google-chrome-stable", ["--app={url}"]),
+        ("google-chrome", ["--app={url}"]),
+        ("chromium-browser", ["--app={url}"]),
+        ("chromium", ["--app={url}"]),
+        ("microsoft-edge-stable", ["--app={url}"]),
+        ("microsoft-edge", ["--app={url}"]),
+        ("opera", ["--app={url}"]),
+        ("vivaldi", ["--app={url}"]),
+        ("epiphany", ["--application-mode={url}"])
     ]
-    for cmd in candidates:
-        path = shutil.which(cmd)
+    for bin_name, args_template in native_candidates:
+        path = shutil.which(bin_name)
         if path:
-            return path
-    return None
+            return ([path], args_template)
+
+    # 2. Flatpak browsers (very popular on Fedora GNOME)
+    flatpak_bin = shutil.which("flatpak")
+    if flatpak_bin:
+        flatpak_candidates = [
+            ("com.brave.Browser", ["--app={url}"]),
+            ("com.google.Chrome", ["--app={url}"]),
+            ("org.chromium.Chromium", ["--app={url}"]),
+            ("com.microsoft.Edge", ["--app={url}"]),
+            ("org.gnome.Epiphany", ["--application-mode={url}"])
+        ]
+        for app_id, args_template in flatpak_candidates:
+            try:
+                chk = subprocess.run([flatpak_bin, "info", app_id], stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+                if chk.returncode == 0:
+                    return ([flatpak_bin, "run", app_id], args_template)
+            except Exception:
+                pass
+
+    return (None, None)
 
 
-def launch_app_window(browser_bin, app_url):
+def launch_app_window(browser_cmd, args_template, app_url):
     profile_dir = CONFIG_DIR / "browser-profile"
     profile_dir.mkdir(parents=True, exist_ok=True)
     
-    # Intel Lunar Lake (Arc 140V) GPU hardware acceleration & Wayland flags
-    cmd = [
-        browser_bin,
-        f"--app={app_url}",
-        f"--user-data-dir={profile_dir}",
+    formatted_args = [a.format(url=app_url) for a in args_template]
+    
+    cmd = browser_cmd + formatted_args + [
+        f"--user-data-dir={profile_dir.resolve()}",
+        "--new-window",
         "--ozone-platform-hint=auto",
         "--enable-features=VaapiVideoDecodeLinuxGL,VaapiVideoDecoder,TouchpadOverscrollHistoryNavigation",
         "--enable-gpu-rasterization",
@@ -143,14 +182,14 @@ def launch_app_window(browser_bin, app_url):
         "--class=lynxshare",
         "--name=lynxshare"
     ]
-    print(f"[LynxShare] Lanzando app window con {browser_bin}...")
+    
+    print(f"[LynxShare] Iniciando ventana de aplicación: {' '.join(browser_cmd)}...")
     try:
         proc = subprocess.Popen(cmd)
-        proc.wait()
-        return True
+        return proc
     except Exception as e:
         print(f"[LynxShare] Error lanzando navegador: {e}")
-        return False
+        return None
 
 
 def main():
@@ -171,7 +210,7 @@ def main():
 
     port = args.port or find_free_port()
     start_local_server(port)
-    app_url = f"http://127.0.0.1:{port}/src/ui/index.html"
+    app_url = f"http://127.0.0.1:{port}/"
 
     print("==================================================")
     print(f"  {APP_NAME} v{APP_VERSION} - Fedora Linux Edition")
@@ -179,21 +218,34 @@ def main():
     print(f"  URL Local: {app_url}")
     print("==================================================")
 
+    # 1. Try pywebview (Native GTK WebKit window)
     if not args.browser:
-        # 1. Try pywebview (native GTK WebKit)
         if launch_pywebview(app_url):
             return
 
-        # 2. Try Chromium-based browser in standalone app mode with Intel VA-API acceleration
-        chromium_bin = find_chromium_app_browser()
-        if chromium_bin and launch_app_window(chromium_bin, app_url):
-            return
+        # 2. Try standalone app window (Chromium / Flatpak / Epiphany)
+        browser_cmd, args_template = find_standalone_browser()
+        if browser_cmd:
+            proc = launch_app_window(browser_cmd, args_template, app_url)
+            if proc:
+                # Wait briefly to check if it delegated to an already-running browser
+                time.sleep(2.5)
+                if proc.poll() is None:
+                    # Process is still running as a dedicated window
+                    try:
+                        proc.wait()
+                    except KeyboardInterrupt:
+                        pass
+                    return
+                # If proc exited immediately, it delegated URL to existing browser session
+                # Fall through to keep server alive!
 
-    # 3. Fallback to default browser
-    print("[LynxShare] Abriendo en tu navegador predeterminado...")
+    # 3. Fallback: Open in default browser & keep background server alive
+    print("[LynxShare] Abriendo en tu navegador...")
     webbrowser.open(app_url)
-    
-    # Keep server alive
+
+    # Keep server running until user terminates
+    print("[LynxShare] Servidor activo. Presiona Ctrl+C en cualquier momento para detenerlo.")
     try:
         while True:
             threading.Event().wait(1)

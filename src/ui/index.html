@@ -4,11 +4,11 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>LynxShare - Linux Desktop (Fedora)</title>
-  <link rel="icon" type="image/png" href="../assets/lynxshare.png">
+  <link rel="icon" type="image/png" href="/assets/lynxshare.png">
   <link rel="preconnect" href="https://fonts.googleapis.com">
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
   <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
-  <link rel="stylesheet" href="style.css">
+  <link rel="stylesheet" href="/style.css">
 </head>
 <body>
 
@@ -18,7 +18,27 @@
     <!-- TOP NAVBAR -->
     <header class="navbar">
       <div class="nav-brand">
-        <img src="../assets/lynxshare.svg" alt="LynxShare Logo" class="brand-logo" onerror="this.src='../assets/lynxshare.png'">
+        <div class="brand-logo-wrap">
+          <svg viewBox="0 0 512 512" width="38" height="38" class="brand-logo-svg">
+            <defs>
+              <linearGradient id="bgGradNav" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" stop-color="#161e38" />
+                <stop offset="100%" stop-color="#0b0f1e" />
+              </linearGradient>
+              <linearGradient id="cyanGradNav" x1="0%" y1="0%" x2="100%" y2="100%">
+                <stop offset="0%" stop-color="#00e5ff" />
+                <stop offset="100%" stop-color="#7c5cff" />
+              </linearGradient>
+            </defs>
+            <rect x="24" y="24" width="464" height="464" rx="100" fill="url(#bgGradNav)" stroke="#00e5ff" stroke-width="8" stroke-opacity="0.6" />
+            <path d="M 130 180 L 230 180 L 260 215 L 130 215 Z" fill="#00e5ff" opacity="0.9" />
+            <rect x="130" y="210" width="252" height="155" rx="20" fill="#f8fafc" />
+            <path d="M 195 257 L 275 257 C 277 257 278 258 278 260 L 278 250 L 310 265 L 278 280 L 278 270 C 278 272 277 273 275 273 L 195 273 C 193 273 191 271 191 269 L 191 261 C 191 259 193 257 195 257 Z" fill="#00b488" />
+            <path d="M 315 313 L 235 313 C 233 313 232 312 232 310 L 232 320 L 200 305 L 232 290 L 232 300 C 232 298 233 297 235 297 L 315 297 C 317 297 319 299 319 301 L 319 309 C 319 311 317 313 315 313 Z" fill="#00c8ff" />
+            <circle cx="360" cy="165" r="16" fill="url(#cyanGradNav)" />
+            <circle cx="360" cy="165" r="8" fill="#ffffff" />
+          </svg>
+        </div>
         <div class="brand-text">
           <div class="brand-title">LynxShare <span class="brand-tag">Fedora · Yoga 7</span></div>
           <div class="brand-subtitle" id="statusIndicator">
@@ -442,6 +462,6 @@
     <div class="upload-prog-meta" id="uploadProgMeta">0 MB / 0 MB</div>
   </div>
 
-  <script src="app.js"></script>
+  <script src="/app.js"></script>
 </body>
 </html>

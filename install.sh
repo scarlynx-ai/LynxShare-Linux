@@ -63,6 +63,12 @@ if command -v dnf &> /dev/null; then
     echo -e "${YELLOW}Recomendado para decodificación de video 4K/8K por hardware en Yoga 7:${NC}"
     echo -e "${YELLOW}  sudo dnf install -y intel-media-driver libva-utils${NC}"
   fi
+
+  # Check if python3-pywebview is available
+  if ! python3 -c "import webview" &> /dev/null; then
+    echo -e "${YELLOW}Recomendado para ventana nativa de escritorio independiente (sin pestañas):${NC}"
+    echo -e "${YELLOW}  sudo dnf install -y python3-pywebview webkit2gtk4.1${NC}"
+  fi
 fi
 
 # Create target directories

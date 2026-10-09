@@ -99,12 +99,22 @@ body {
   gap: 12px;
 }
 
-.brand-logo {
+.brand-logo-wrap {
   width: 38px;
   height: 38px;
   border-radius: 10px;
   box-shadow: 0 0 16px var(--cyan-glow);
-  object-fit: cover;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+
+.brand-logo-svg {
+  width: 100%;
+  height: 100%;
+  display: block;
 }
 
 .brand-title {
@@ -462,7 +472,9 @@ body {
 /* Grid Mode */
 .file-container.grid-mode {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(185px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
+  grid-auto-rows: max-content;
+  align-content: start;
   gap: 16px;
 }
 
@@ -484,6 +496,8 @@ body {
   align-items: center;
   position: relative;
   cursor: pointer;
+  height: fit-content;
+  max-height: 220px;
   transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 .file-card:hover {
@@ -498,7 +512,7 @@ body {
 
 .file-preview-box {
   width: 100%;
-  height: 110px;
+  height: 100px;
   border-radius: var(--radius-sm);
   background: var(--surface-2);
   display: flex;
@@ -507,6 +521,7 @@ body {
   overflow: hidden;
   margin-bottom: 10px;
   position: relative;
+  flex-shrink: 0;
 }
 .file-thumb-img {
   width: 100%;
