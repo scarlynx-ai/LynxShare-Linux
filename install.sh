@@ -89,12 +89,24 @@ cp -r "$SCRIPT_DIR/assets" "$INSTALL_DIR/"
 
 chmod +x "$INSTALL_DIR/lynxshare.py"
 
+# Configure lightweight native desktop environment (pywebview + WebKitGTK)
+echo -e "${CYAN}Configurando soporte para ventana nativa de escritorio...${NC}"
+if python3 -m venv "$INSTALL_DIR/venv" --system-site-packages 2>/dev/null; then
+  if "$INSTALL_DIR/venv/bin/pip" install pywebview --quiet 2>/dev/null; then
+    echo -e "${GREEN}Soporte para ventana nativa WebKitGTK activado correctamente.${NC}"
+  fi
+fi
+
 # Create launcher wrapper in BIN_DIR
 LAUNCHER="$BIN_DIR/lynxshare"
 echo -e "${CYAN}Creando ejecutable en $LAUNCHER...${NC}"
 cat <<EOF > "$LAUNCHER"
 #!/usr/bin/env bash
-exec python3 "$INSTALL_DIR/lynxshare.py" "\$@"
+if [ -x "$INSTALL_DIR/venv/bin/python3" ]; then
+  exec "$INSTALL_DIR/venv/bin/python3" "$INSTALL_DIR/lynxshare.py" "\$@"
+else
+  exec python3 "$INSTALL_DIR/lynxshare.py" "\$@"
+fi
 EOF
 chmod +x "$LAUNCHER"
 
