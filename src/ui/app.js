@@ -178,6 +178,17 @@ async function startApp() {
   }, 15000);
 }
 
+// 5-second splash screen dismiss
+setTimeout(() => {
+  const splash = document.getElementById('scarlynxSplash');
+  if (splash) {
+    splash.classList.add('fade-out');
+    setTimeout(() => {
+      splash.style.display = 'none';
+    }, 600);
+  }
+}, 5000);
+
 // Resilient DOM ready detection: works whether DOMContentLoaded already fired or not
 if (document.readyState === 'loading') {
   document.addEventListener('DOMContentLoaded', startApp);

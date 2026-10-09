@@ -1490,3 +1490,68 @@ body {
     padding: 10px 14px;
   }
 }
+
+/* ==========================================================================
+   5-SECOND SCARLYNX SPLASH SCREEN
+   ========================================================================== */
+.scarlynx-splash-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 999999;
+  background-color: #1f1f2b;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 1;
+  transition: opacity 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  pointer-events: all;
+  user-select: none;
+}
+
+.scarlynx-splash-overlay.fade-out {
+  opacity: 0;
+  pointer-events: none;
+}
+
+.scarlynx-splash-content {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: splashZoomIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+.scarlynx-splash-logo {
+  max-width: min(440px, 85vw);
+  max-height: 52vh;
+  object-fit: contain;
+  filter: drop-shadow(0 14px 36px rgba(0, 0, 0, 0.55));
+}
+
+.scarlynx-splash-loader {
+  width: 180px;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.12);
+  border-radius: 999px;
+  margin-top: 24px;
+  overflow: hidden;
+  position: relative;
+}
+
+.scarlynx-splash-progress {
+  height: 100%;
+  width: 0%;
+  background: linear-gradient(90deg, #ff758c, #ff7eb3, #00e5ff);
+  border-radius: 999px;
+  animation: splashFillProgress 5s linear forwards;
+}
+
+@keyframes splashFillProgress {
+  0% { width: 0%; }
+  100% { width: 100%; }
+}
+
+@keyframes splashZoomIn {
+  0% { opacity: 0; transform: scale(0.92); }
+  100% { opacity: 1; transform: scale(1); }
+}
