@@ -2,6 +2,11 @@
 """
 LynxShare - Linux Desktop Application
 Tailored for Fedora Linux & Lenovo Yoga 7 2-in-1 (Intel Core Ultra 7 258V Lunar Lake)
+Features:
+- Built-in High-Speed Local Proxy for /api/* (Zero CORS, Zero Private Network Access blocking)
+- Native WebKitGTK (pywebview) support
+- Standalone Chromium / Brave / Chrome / Flatpak app window fallback
+- Wayland native scaling & Intel Arc Lunar Lake VA-API hardware acceleration
 """
 
 import sys
@@ -14,6 +19,8 @@ import threading
 import webbrowser
 import json
 import time
+import urllib.request
+import urllib.error
 from pathlib import Path
 from http.server import ThreadingHTTPServer, SimpleHTTPRequestHandler
 
@@ -56,7 +63,7 @@ def find_free_port():
 
 
 class LynxShareHandler(SimpleHTTPRequestHandler):
-    """Multi-threaded handler that cleanly routes root and assets without ugly redirects."""
+    """Multi-threaded handler that serves local UI and proxies /api/ calls directly to the PC server."""
     
     def translate_path(self, path):
         clean_path = path.split('?', 1)[0].split('#', 1)[0]
@@ -82,6 +89,103 @@ class LynxShareHandler(SimpleHTTPRequestHandler):
         
         return super().translate_path(path)
 
+    def do_GET(self):
+        clean_path = self.path.split('?', 1)[0].split('#', 1)[0]
+        
+        # Local config endpoint
+        if clean_path == '/api/config':
+            cfg = load_config()
+            self.send_response(200)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(json.dumps(cfg).encode('utf-8'))
+            return
+            
+        # Proxy other /api/ calls
+        if clean_path.startswith('/api/'):
+            self.proxy_request("GET")
+            return
+            
+        super().do_GET()
+
+    def do_POST(self):
+        clean_path = self.path.split('?', 1)[0].split('#', 1)[0]
+        
+        # Local config endpoint
+        if clean_path == '/api/config':
+            length = int(self.headers.get('Content-Length', 0))
+            body = self.rfile.read(length) if length > 0 else b'{}'
+            try:
+                new_cfg = json.loads(body.decode('utf-8'))
+                cfg = load_config()
+                if "server_url" in new_cfg:
+                    cfg["server_url"] = new_cfg["server_url"].rstrip("/")
+                    save_config(cfg)
+                self.send_response(200)
+                self.send_header("Content-Type", "application/json")
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                self.wfile.write(json.dumps({"ok": True, "server_url": cfg["server_url"]}).encode('utf-8'))
+            except Exception as e:
+                self.send_response(400)
+                self.send_header("Content-Type", "application/json")
+                self.end_headers()
+                self.wfile.write(json.dumps({"error": str(e)}).encode('utf-8'))
+            return
+
+        # Proxy other /api/ calls
+        if clean_path.startswith('/api/'):
+            self.proxy_request("POST")
+            return
+            
+        self.send_error(405)
+
+    def do_DELETE(self):
+        clean_path = self.path.split('?', 1)[0].split('#', 1)[0]
+        if clean_path.startswith('/api/'):
+            self.proxy_request("DELETE")
+            return
+        self.send_error(405)
+
+    def proxy_request(self, method):
+        """Proxies HTTP calls directly to the PC server without browser CORS or network sandbox issues."""
+        cfg = load_config()
+        pc_server = cfg.get("server_url", DEFAULT_PC_SERVER).rstrip("/")
+        target_url = f"{pc_server}{self.path}"
+        
+        # Read body if any
+        content_length = int(self.headers.get('Content-Length', 0))
+        body = self.rfile.read(content_length) if content_length > 0 else None
+        
+        req = urllib.request.Request(target_url, data=body, method=method)
+        # Forward headers
+        for h in ('Content-Type', 'Range', 'Accept', 'User-Agent'):
+            if h in self.headers:
+                req.add_header(h, self.headers[h])
+                
+        try:
+            with urllib.request.urlopen(req, timeout=8) as resp:
+                self.send_response(resp.status)
+                for k, v in resp.getheaders():
+                    if k.lower() not in ('transfer-encoding', 'connection'):
+                        self.send_header(k, v)
+                self.send_header("Access-Control-Allow-Origin", "*")
+                self.end_headers()
+                shutil.copyfileobj(resp, self.wfile)
+        except urllib.error.HTTPError as e:
+            self.send_response(e.code)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(e.read())
+        except Exception as e:
+            self.send_response(504)
+            self.send_header("Content-Type", "application/json")
+            self.send_header("Access-Control-Allow-Origin", "*")
+            self.end_headers()
+            self.wfile.write(json.dumps({"error": str(e), "status": "offline"}).encode('utf-8'))
+
     def end_headers(self):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Cache-Control", "no-cache, must-revalidate")
@@ -93,7 +197,6 @@ class LynxShareHandler(SimpleHTTPRequestHandler):
 
 
 def start_local_server(port):
-    # Using ThreadingHTTPServer prevents blocking on keep-alive connections
     server = ThreadingHTTPServer(('127.0.0.1', port), LynxShareHandler)
     server.daemon_threads = True
     thread = threading.Thread(target=server.serve_forever, daemon=True)
@@ -144,7 +247,7 @@ def find_standalone_browser():
         if path:
             return ([path], args_template)
 
-    # 2. Flatpak browsers (very popular on Fedora GNOME)
+    # 2. Flatpak browsers (popular on Fedora GNOME)
     flatpak_bin = shutil.which("flatpak")
     if flatpak_bin:
         flatpak_candidates = [
@@ -216,6 +319,7 @@ def main():
     print(f"  {APP_NAME} v{APP_VERSION} - Fedora Linux Edition")
     print(f"  Optimizado para Lenovo Yoga 7 2-in-1 (Lunar Lake)")
     print(f"  URL Local: {app_url}")
+    print(f"  Servidor PC Destino: {cfg.get('server_url', DEFAULT_PC_SERVER)}")
     print("==================================================")
 
     # 1. Try pywebview (Native GTK WebKit window)
@@ -228,17 +332,13 @@ def main():
         if browser_cmd:
             proc = launch_app_window(browser_cmd, args_template, app_url)
             if proc:
-                # Wait briefly to check if it delegated to an already-running browser
                 time.sleep(2.5)
                 if proc.poll() is None:
-                    # Process is still running as a dedicated window
                     try:
                         proc.wait()
                     except KeyboardInterrupt:
                         pass
                     return
-                # If proc exited immediately, it delegated URL to existing browser session
-                # Fall through to keep server alive!
 
     # 3. Fallback: Open in default browser & keep background server alive
     print("[LynxShare] Abriendo en tu navegador...")

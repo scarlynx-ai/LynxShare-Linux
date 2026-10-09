@@ -120,16 +120,15 @@ const DOM = {
 // INITIALIZATION
 // ==========================================================================
 
-document.addEventListener('DOMContentLoaded', () => {
-  initServerUrl();
+document.addEventListener('DOMContentLoaded', async () => {
   setupEventListeners();
   applyViewMode();
   updateAspectUI();
+  await initServerUrl();
   
-  // Initial load
-  checkServerStatus(true).then(() => {
-    loadFolder('');
-  });
+  // Parallel initial load: check server and load files simultaneously
+  checkServerStatus(false);
+  loadFolder('');
 
   // Background health check
   setInterval(() => {
@@ -137,9 +136,24 @@ document.addEventListener('DOMContentLoaded', () => {
   }, 15000);
 });
 
-function initServerUrl() {
-  // If served via embedded python runner, keep stored URL or default to PC server
+async function initServerUrl() {
+  // If running locally on 127.0.0.1, query python proxy config
+  if (isLocalRunner()) {
+    try {
+      const res = await fetch('/api/config', { signal: AbortSignal.timeout(2000) });
+      if (res.ok) {
+        const data = await res.json();
+        if (data.server_url) {
+          state.serverUrl = data.server_url;
+        }
+      }
+    } catch (_) {}
+  }
   DOM.serverUrlInput.value = state.serverUrl;
+}
+
+function isLocalRunner() {
+  return window.location.hostname === '127.0.0.1' || window.location.hostname === 'localhost';
 }
 
 // ==========================================================================
@@ -147,21 +161,27 @@ function initServerUrl() {
 // ==========================================================================
 
 function getCleanBaseUrl() {
+  // When running via local python desktop runner, use local proxy to avoid CORS/PNA issues!
+  if (isLocalRunner()) {
+    return '';
+  }
   return state.serverUrl.replace(/\/+$/, '');
 }
 
 async function checkServerStatus(showErrors = false) {
   const url = `${getCleanBaseUrl()}/api/status`;
   try {
-    const res = await fetch(url, { cache: 'no-store' });
+    const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     
+    if (data.status === 'offline') throw new Error(data.error || 'Servidor offline');
+
     state.isOnline = true;
     state.diskInfo = data.disk;
     
     DOM.statusDot.className = 'status-dot online';
-    DOM.statusText.textContent = `En línea (${data.local_ip}:${data.port})`;
+    DOM.statusText.textContent = `En línea (${data.local_ip || 'PC'}:${data.port || '8090'})`;
     
     // Update disk bar
     if (data.disk) {
@@ -181,7 +201,7 @@ async function checkServerStatus(showErrors = false) {
     DOM.diskValues.textContent = 'Desconectado';
     DOM.diskBarFill.style.width = '0%';
     if (showErrors) {
-      showToast(`No se pudo conectar a ${state.serverUrl}`, 'error');
+      showToast(`No se pudo conectar al servidor PC. Verifica la IP en ⚙️`, 'error', 4000);
     }
     return null;
   }
@@ -193,7 +213,9 @@ async function loadFolder(path = '') {
   
   try {
     const encoded = encodeURIComponent(path);
-    const res = await fetch(`${getCleanBaseUrl()}/api/files?path=${encoded}`);
+    const res = await fetch(`${getCleanBaseUrl()}/api/files?path=${encoded}`, {
+      signal: AbortSignal.timeout(6000)
+    });
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     
@@ -202,7 +224,7 @@ async function loadFolder(path = '') {
     updateCategoryCounts();
     applyFilterAndRender();
   } catch (err) {
-    showToast(`Error al cargar carpeta: ${err.message}`, 'error');
+    showToast(`Error de conexión con PC: ${err.message}`, 'error', 4000);
     DOM.emptyState.style.display = 'flex';
   } finally {
     showLoading(false);
@@ -1087,15 +1109,26 @@ async function testServerConnection() {
   }
 }
 
-function saveServerSettings() {
+async function saveServerSettings() {
   const clean = DOM.serverUrlInput.value.replace(/\/+$/, '').trim();
   state.serverUrl = clean;
   localStorage.setItem('lynxshare_server_url', clean);
+  
+  if (isLocalRunner()) {
+    try {
+      await fetch('/api/config', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ server_url: clean }),
+        signal: AbortSignal.timeout(3000)
+      });
+    } catch (_) {}
+  }
+
   showToast('Configuración de servidor guardada', 'success');
   closeModal('serverModal');
-  checkServerStatus(true).then(() => {
-    loadFolder('');
-  });
+  checkServerStatus(true);
+  loadFolder('');
 }
 
 // ==========================================================================
