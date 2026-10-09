@@ -3,22 +3,62 @@
  * Tailored for Lenovo Yoga 7 2-in-1 (Intel Lunar Lake Core Ultra 7 258V)
  */
 
+// Error Boundary for UI
+window.onerror = function(msg, url, line, col, error) {
+  console.error('[LynxShare UI Error]', msg, line, error);
+  const loading = document.getElementById('loadingState');
+  if (loading) {
+    loading.innerHTML = `
+      <div style="text-align: center; color: #ff5252; padding: 20px;">
+        <h3 style="margin-bottom: 8px;">Error al cargar interfaz</h3>
+        <p style="font-size: 13px; font-family: monospace; color: #cbd5e1;">${msg} (línea ${line})</p>
+        <button onclick="location.reload()" style="margin-top: 12px; padding: 6px 14px; border-radius: 6px; background: #00e5ff; color: #000; border: none; font-weight: 600; cursor: pointer;">Reintentar</button>
+      </div>
+    `;
+  }
+};
+
+// Safe Storage
+function safeGetStorage(key, fallback = '') {
+  try {
+    return localStorage.getItem(key) || fallback;
+  } catch (_) {
+    return fallback;
+  }
+}
+
+function safeSetStorage(key, val) {
+  try {
+    localStorage.setItem(key, val);
+  } catch (_) {}
+}
+
+// Universal Timeout Fetch (100% compatible with WebKitGTK and Chromium)
+function fetchWithTimeout(url, options = {}, timeoutMs = 8000) {
+  const controller = (typeof AbortController !== 'undefined') ? new AbortController() : null;
+  const timeoutId = controller ? setTimeout(() => controller.abort(), timeoutMs) : null;
+  const opts = controller ? { ...options, signal: controller.signal } : options;
+  return fetch(url, opts).finally(() => {
+    if (timeoutId) clearTimeout(timeoutId);
+  });
+}
+
 // Global State
 const state = {
-  serverUrl: localStorage.getItem('lynxshare_server_url') || 'http://192.168.31.219:8090',
+  serverUrl: safeGetStorage('lynxshare_server_url', 'http://192.168.31.219:8090'),
   currentPath: '',
   items: [],
   filteredItems: [],
   categoryFilter: 'ALL',
   searchQuery: '',
-  viewMode: localStorage.getItem('lynxshare_view_mode') || 'grid', // 'grid' | 'list'
+  viewMode: safeGetStorage('lynxshare_view_mode', 'grid'), // 'grid' | 'list'
   isOnline: false,
   diskInfo: null,
   
   // Video player state
   videoFiles: [],
   currentVideoIndex: -1,
-  videoAspect: localStorage.getItem('lynxshare_video_aspect') || 'fit', // 'fit' | 'inmersive'
+  videoAspect: safeGetStorage('lynxshare_video_aspect', 'fit'), // 'fit' | 'inmersive'
   videoSpeed: 1.0,
   controlsTimeout: null,
   
@@ -120,10 +160,12 @@ const DOM = {
 // INITIALIZATION
 // ==========================================================================
 
-document.addEventListener('DOMContentLoaded', async () => {
-  setupEventListeners();
-  applyViewMode();
-  updateAspectUI();
+async function startApp() {
+  console.log('[LynxShare] Arrancando aplicación...');
+  try { setupEventListeners(); } catch (e) { console.warn('setupEventListeners', e); }
+  try { applyViewMode(); } catch (e) { console.warn('applyViewMode', e); }
+  try { updateAspectUI(); } catch (e) { console.warn('updateAspectUI', e); }
+  
   await initServerUrl();
   
   // Parallel initial load: check server and load files simultaneously
@@ -134,13 +176,20 @@ document.addEventListener('DOMContentLoaded', async () => {
   setInterval(() => {
     checkServerStatus(false);
   }, 15000);
-});
+}
+
+// Resilient DOM ready detection: works whether DOMContentLoaded already fired or not
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', startApp);
+} else {
+  startApp();
+}
 
 async function initServerUrl() {
   // If running locally on 127.0.0.1, query python proxy config
   if (isLocalRunner()) {
     try {
-      const res = await fetch('/api/config', { signal: AbortSignal.timeout(2000) });
+      const res = await fetchWithTimeout('/api/config', {}, 2500);
       if (res.ok) {
         const data = await res.json();
         if (data.server_url) {
@@ -149,7 +198,9 @@ async function initServerUrl() {
       }
     } catch (_) {}
   }
-  DOM.serverUrlInput.value = state.serverUrl;
+  if (DOM.serverUrlInput) {
+    DOM.serverUrlInput.value = state.serverUrl;
+  }
 }
 
 function isLocalRunner() {
@@ -171,7 +222,7 @@ function getCleanBaseUrl() {
 async function checkServerStatus(showErrors = false) {
   const url = `${getCleanBaseUrl()}/api/status`;
   try {
-    const res = await fetch(url, { cache: 'no-store', signal: AbortSignal.timeout(5000) });
+    const res = await fetchWithTimeout(url, { cache: 'no-store' }, 5000);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     
@@ -180,11 +231,11 @@ async function checkServerStatus(showErrors = false) {
     state.isOnline = true;
     state.diskInfo = data.disk;
     
-    DOM.statusDot.className = 'status-dot online';
-    DOM.statusText.textContent = `En línea (${data.local_ip || 'PC'}:${data.port || '8090'})`;
+    if (DOM.statusDot) DOM.statusDot.className = 'status-dot online';
+    if (DOM.statusText) DOM.statusText.textContent = `En línea (${data.local_ip || 'PC'}:${data.port || '8090'})`;
     
     // Update disk bar
-    if (data.disk) {
+    if (data.disk && DOM.diskValues && DOM.diskBarFill) {
       DOM.diskValues.textContent = `${data.disk.used_str} / ${data.disk.total_str} (${data.disk.percent_used}%)`;
       DOM.diskBarFill.style.width = `${Math.min(data.disk.percent_used, 100)}%`;
       if (data.disk.percent_used > 90) {
@@ -196,10 +247,10 @@ async function checkServerStatus(showErrors = false) {
     return data;
   } catch (err) {
     state.isOnline = false;
-    DOM.statusDot.className = 'status-dot offline';
-    DOM.statusText.textContent = 'Servidor PC desconectado';
-    DOM.diskValues.textContent = 'Desconectado';
-    DOM.diskBarFill.style.width = '0%';
+    if (DOM.statusDot) DOM.statusDot.className = 'status-dot offline';
+    if (DOM.statusText) DOM.statusText.textContent = 'Servidor PC desconectado';
+    if (DOM.diskValues) DOM.diskValues.textContent = 'Desconectado';
+    if (DOM.diskBarFill) DOM.diskBarFill.style.width = '0%';
     if (showErrors) {
       showToast(`No se pudo conectar al servidor PC. Verifica la IP en ⚙️`, 'error', 4000);
     }
@@ -213,9 +264,7 @@ async function loadFolder(path = '') {
   
   try {
     const encoded = encodeURIComponent(path);
-    const res = await fetch(`${getCleanBaseUrl()}/api/files?path=${encoded}`, {
-      signal: AbortSignal.timeout(6000)
-    });
+    const res = await fetchWithTimeout(`${getCleanBaseUrl()}/api/files?path=${encoded}`, {}, 6000);
     if (!res.ok) throw new Error(`HTTP ${res.status}`);
     const data = await res.json();
     
@@ -224,8 +273,15 @@ async function loadFolder(path = '') {
     updateCategoryCounts();
     applyFilterAndRender();
   } catch (err) {
+    console.error('[LynxShare] Error cargando carpeta:', err);
     showToast(`Error de conexión con PC: ${err.message}`, 'error', 4000);
-    DOM.emptyState.style.display = 'flex';
+    if (DOM.emptyState) {
+      DOM.emptyState.style.display = 'flex';
+      const h3 = DOM.emptyState.querySelector('h3');
+      const p = DOM.emptyState.querySelector('p');
+      if (h3) h3.textContent = 'No se pudo conectar al servidor PC';
+      if (p) p.textContent = `Error: ${err.message}. Verifica que tu servidor PC esté activo en ${state.serverUrl}`;
+    }
   } finally {
     showLoading(false);
   }
@@ -1116,12 +1172,11 @@ async function saveServerSettings() {
   
   if (isLocalRunner()) {
     try {
-      await fetch('/api/config', {
+      await fetchWithTimeout('/api/config', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ server_url: clean }),
-        signal: AbortSignal.timeout(3000)
-      });
+        body: JSON.stringify({ server_url: clean })
+      }, 3000);
     } catch (_) {}
   }
 

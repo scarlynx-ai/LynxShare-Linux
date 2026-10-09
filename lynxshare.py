@@ -97,7 +97,6 @@ class LynxShareHandler(SimpleHTTPRequestHandler):
             cfg = load_config()
             self.send_response(200)
             self.send_header("Content-Type", "application/json")
-            self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(json.dumps(cfg).encode('utf-8'))
             return
@@ -124,7 +123,6 @@ class LynxShareHandler(SimpleHTTPRequestHandler):
                     save_config(cfg)
                 self.send_response(200)
                 self.send_header("Content-Type", "application/json")
-                self.send_header("Access-Control-Allow-Origin", "*")
                 self.end_headers()
                 self.wfile.write(json.dumps({"ok": True, "server_url": cfg["server_url"]}).encode('utf-8'))
             except Exception as e:
@@ -167,27 +165,29 @@ class LynxShareHandler(SimpleHTTPRequestHandler):
         try:
             with urllib.request.urlopen(req, timeout=8) as resp:
                 self.send_response(resp.status)
+                skip = {'transfer-encoding', 'connection', 'access-control-allow-origin',
+                        'access-control-allow-methods', 'access-control-allow-headers',
+                        'cache-control', 'server', 'date'}
                 for k, v in resp.getheaders():
-                    if k.lower() not in ('transfer-encoding', 'connection'):
+                    if k.lower() not in skip:
                         self.send_header(k, v)
-                self.send_header("Access-Control-Allow-Origin", "*")
                 self.end_headers()
                 shutil.copyfileobj(resp, self.wfile)
         except urllib.error.HTTPError as e:
             self.send_response(e.code)
             self.send_header("Content-Type", "application/json")
-            self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(e.read())
         except Exception as e:
             self.send_response(504)
             self.send_header("Content-Type", "application/json")
-            self.send_header("Access-Control-Allow-Origin", "*")
             self.end_headers()
             self.wfile.write(json.dumps({"error": str(e), "status": "offline"}).encode('utf-8'))
 
     def end_headers(self):
         self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, PUT, DELETE, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "*")
         self.send_header("Cache-Control", "no-cache, must-revalidate")
         super().end_headers()
 
@@ -217,7 +217,7 @@ def launch_pywebview(app_url):
             background_color="#090c15",
             text_select=False
         )
-        webview.start(gui="gtk", debug=bool(os.environ.get("LYNXSHARE_DEBUG") == "1"))
+        webview.start(gui="gtk", debug=True)
         return True
     except ImportError:
         return False
@@ -300,6 +300,9 @@ def main():
     parser.add_argument("--server", type=str, help="URL del servidor PC (ej: http://192.168.31.219:8090)")
     parser.add_argument("--port", type=int, default=None, help="Puerto local para UI")
     parser.add_argument("--browser", action="store_true", help="Abrir directamente en navegador predeterminado")
+    parser.add_argument("--window", action="store_true", help="Abrir en ventana independiente (Brave/Chrome/Edge)")
+    parser.add_argument("--brave", action="store_true", help="Abrir directamente en ventana de aplicación Brave")
+    parser.add_argument("--gtk", action="store_true", help="Forzar ventana nativa WebKitGTK")
     parser.add_argument("--debug", action="store_true", help="Activar modo depuración")
     args = parser.parse_args()
 
@@ -322,6 +325,18 @@ def main():
     print(f"  Servidor PC Destino: {cfg.get('server_url', DEFAULT_PC_SERVER)}")
     print("==================================================")
 
+    # Standalone browser window requested
+    if args.window or args.brave:
+        browser_cmd, args_template = find_standalone_browser()
+        if browser_cmd:
+            proc = launch_app_window(browser_cmd, args_template, app_url)
+            if proc:
+                try:
+                    proc.wait()
+                except KeyboardInterrupt:
+                    pass
+                return
+
     # 1. Try pywebview (Native GTK WebKit window)
     if not args.browser:
         if launch_pywebview(app_url):
@@ -332,13 +347,11 @@ def main():
         if browser_cmd:
             proc = launch_app_window(browser_cmd, args_template, app_url)
             if proc:
-                time.sleep(2.5)
-                if proc.poll() is None:
-                    try:
-                        proc.wait()
-                    except KeyboardInterrupt:
-                        pass
-                    return
+                try:
+                    proc.wait()
+                except KeyboardInterrupt:
+                    pass
+                return
 
     # 3. Fallback: Open in default browser & keep background server alive
     print("[LynxShare] Abriendo en tu navegador...")
